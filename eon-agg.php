@@ -18,6 +18,7 @@ function test_plugin_setup_menu(){
 require_once 'custom-type.php';
 require_once 'autoshare.php';
 require_once 'metadata.class.php';
+require_once 'meta-tags.php';
 
 
 
@@ -157,6 +158,106 @@ function getRss($rss,$catID, $user) {
                 // Arbitrarily use -2 to indicate that the page with the title already exists
                 $post_id = -2;
             } // end if
+
+        }
+
+    }
+
+};
+
+
+function get_crazball($rss,$user) {
+    $urls = '';
+    $rss_url = $rss;
+    $api_endpoint = 'https://api.rss2json.com/v1/api.json?rss_url=';
+    $data = json_decode( file_get_contents($api_endpoint . urlencode($rss_url)) , true );
+
+    if($data['status'] == 'ok'){
+        $c=0;
+        foreach ($data['items'] as $key => $item) {
+            $urls[] = $item['link'];
+            $c++;
+        }
+        for($i=0;$i<$c;$i++) {
+            $url = $urls[$i];
+            $url = htmlspecialchars_decode($url);
+            $metaData = MetaData::fetch($url);
+            foreach ($metaData as $key => $value) {
+                $fetch_data[$key] = $value;
+            }
+            //var_dump($fetch_data);
+            $title = $fetch_data['og:title'];
+            $title_article = '[Article] '.$title;
+            $title_crazball = '[Bola] '.$title;
+            $siteName = $fetch_data['og:site_name'];
+            $image = '';
+            $image_1 = $fetch_data['og:image'];
+            $image_2 = $fetch_data['og:image'][0];
+            if (strlen($image_2)>1) {
+                $image = $image_2;
+            } else {
+                $image = $image_1;
+            }
+            $desc = $fetch_data['og:description'];
+            $urlNews = $fetch_data['og:url'];
+            $newsKeywords = '';
+            if (array_key_exists('news_keywords', $fetch_data)) {
+                $newsKeywords = $fetch_data['news_keywords'];
+            } else {
+                $newsKeywords = $fetch_data['keywords'];
+            }
+            preg_match('@^(?:http://|https://)?([^/]+)@i',
+                $urlNews, $matches);
+            $host = $matches[1];
+
+            $sApiUrl = 'http://www.google.com/s2/favicons?domain='.$host;
+            $favicon = $sApiUrl;
+
+
+
+            if( null == get_page_by_title( $title_crazball, OBJECT, 'crazball' ) ) {
+                $args = array(
+                    'post_author'       =>  $user,
+                    'comment_status'	=>	'closed',
+                    'ping_status'		=>	'closed',
+                    'post_title'		=>	$title_crazball,
+                    'post_content'      =>  $desc,
+                    'post_status'		=>	'publish',
+                    'post_type'		    =>	'crazball'
+                );
+                // Set the page ID so that we know the page was created successfully
+                $post_id = wp_insert_post($args);
+                //category
+                //wp_set_post_terms( $post_id, array($catID), 'category' );
+                //tags
+                if($newsKeywords){
+                    wp_set_post_tags( $post_id, $newsKeywords, true );
+                }
+                //custom field
+                if($image) {
+                    add_post_meta($post_id, 'news_image', $image, true);
+                }
+                if($urlNews) {
+                    add_post_meta($post_id, 'news_url', $urlNews, true);
+                }
+                if ($siteName) {
+                    add_post_meta($post_id, 'source', $siteName, true);
+                }
+                if ($host){
+                    add_post_meta($post_id, 'host', $host, true);
+                }
+                if ($favicon) {
+                    add_post_meta($post_id, 'favicon', $favicon, true);
+                }
+                add_post_meta($post_id, 'share_fb', 'no', true);
+                add_post_meta($post_id, 'share_tw', 'no', true);
+                add_post_meta($post_id, 'source_title', $title, true);
+
+                // Otherwise, we'll stop and set a flag
+            } else {
+                // Arbitrarily use -2 to indicate that the page with the title already exists
+                $post_id = -2;
+            } // end if
         }
 
     }
@@ -237,6 +338,11 @@ function getRss_insertPost_cloter_1() {
 	getRss($rssGadget,$catGadget,1);
 	getRss($rssViral,$catViral,1);
 	getRss($rssTravel,$catTravel,1);
+
+
+	//crazball
+    $rssCrazball = 'https://news.google.com/news?cf=all&hl=id&pz=1&ned=id_id&q=Sepak+bola&output=rss';
+    get_crazball($rssCrazball,1);
 };
 
 add_action( 'insert_cloter_2', 'getRss_insertPost_cloter_2' );

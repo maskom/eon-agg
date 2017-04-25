@@ -48,7 +48,7 @@ function autoshare(){
             //Post property to Facebook
             $linkData = [
                 'message'       => $source_title."\r\n\r\nSelengkapnya: ".$short_link."\r\nArtikel Lainnya:	 ".$home_short_link."\r\n",
-                'link'          => $link,
+                'link'          => $short_link,
                 'picture'       => $picture,
                 "name"          => $source_title,
                 "caption"       => $source,
